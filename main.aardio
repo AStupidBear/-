@@ -1,0 +1,257 @@
+import win.ui
+import gdip
+import mouse.hook
+/*DSG{{*/
+mainForm = win.form(text="aardio form";right=677;bottom=490)
+mainForm.add(
+button={cls="button";text="开始";left=470;top=297;right=600;bottom=352;z=2};
+button2={cls="button";text="悔棋";left=470;top=376;right=600;bottom=430;z=3};
+combobox={cls="combobox";left=538;top=227;right=606;bottom=253;edge=1;items={"机";"人"};mode="dropdown";z=7};
+static={cls="static";left=34;top=36;right=434;bottom=436;bgcolor=16777215;notify=1;z=1};
+static2={cls="static";text="黑棋子数: 2";left=469;top=79;right=600;bottom=112;transparent=1;z=4};
+static3={cls="static";text="白棋子数: 2";left=470;top=150;right=600;bottom=180;notify=1;transparent=1;z=5};
+static4={cls="static";text="对手类型";left=471;top=236;right=541;bottom=266;transparent=1;z=6}
+)
+/*}}*/
+
+function 出界(x, y) begin
+	return x < 1 || x > 8 || y < 1 || y > 8
+end
+
+function 获得当前对手(棋手) begin
+	return (棋手 + 1) % 2
+end
+
+function 复制棋盘(目标棋盘, 原棋盘) begin
+	for (i = 1;8) begin
+        for (j = 1;8) begin
+            目标棋盘[i][j] = 原棋盘[i][j] 
+        end
+	end
+end
+
+
+function 初始化棋盘() begin
+    棋盘 = {}
+    for (i = 1;8) begin
+        table.push(棋盘, {-1; -1; -1; -1; -1; -1; -1; -1;})
+    end
+    棋盘[4][4] = 1; 棋盘[5][5] = 1
+    棋盘[4][5] = 0; 棋盘[5][4] = 0
+    return 棋盘
+end
+
+function 合法方向(当前棋盘, 棋手, x, y, i, j, 是否已经合法) begin
+    对手 = 获得当前对手(棋手); x += i; y += j
+    if (出界(x, y) || i == 0 && j == 0) begin
+    	return false
+    end
+    if 当前棋盘[x][y] == 对手 begin
+    	return 合法方向(当前棋盘, 棋手, x, y, i, j, true)
+    end
+    if 当前棋盘[x][y] == 棋手 begin
+    	return 是否已经合法
+    end
+    return false
+end
+
+function 合法位置(当前棋盘, 棋手, x, y) begin
+    if 出界(x, y) || 当前棋盘[x][y] !== -1 begin
+    	return false
+    end
+    for (i = -1;1) begin
+        for (j = -1;1) begin
+            if 合法方向(当前棋盘, 棋手, x, y, i, j, false) begin
+            	return true
+            end
+        end
+    end
+    return false
+end
+
+function 翻转(当前棋盘, 棋手, x, y) begin
+    for (i = -1;1) begin
+        for (j = -1;1) begin
+            if 合法方向(当前棋盘, 棋手, x, y, i, j, false) begin
+                翻转方向(当前棋盘, 棋手, x, y, i, j)
+            end
+        end
+    end
+end
+
+function 翻转方向(当前棋盘, 棋手, x, y, i, j) begin
+    对手 = 获得当前对手(棋手)
+    x += i; y += j
+    while !出界(x, y) && (当前棋盘[x][y] == 对手) begin
+        当前棋盘[x][y] = 棋手
+        x += i; y += j
+    end
+end
+
+function 悔棋(当前棋盘, 前一步棋盘, 前两步棋盘) begin
+    复制棋盘(当前棋盘, 前两步棋盘)
+    复制棋盘(前一步棋盘, 前两步棋盘)
+    绘制棋盘(当前棋盘)
+end
+
+function 计算棋子数(当前棋盘) begin
+    白棋总数 = 0; 黑棋总数 = 0
+    for (i = 1;8) begin
+        for (j = 1;8) begin
+            if 当前棋盘[i][j] == 1 {白棋总数 += 1}
+            elseif 当前棋盘[i][j] == 0 {黑棋总数 += 1}
+        end
+    end
+    return 黑棋总数, 白棋总数
+end
+
+function 结束游戏(当前棋盘) begin
+    黑棋总数, 白棋总数 = 计算棋子数(当前棋盘)
+    if 白棋总数 > 黑棋总数 {mainForm.static.text = "白棋胜"}
+    elseif 白棋总数 < 黑棋总数 {mainForm.static.text = "黑棋胜"}
+    else {mainForm.static.text = "平局"}
+end
+
+function 无棋可下(当前棋盘, 棋手) begin
+    for (i = 1;8) begin
+        for (j = 1;8) begin
+            if 合法位置(当前棋盘, 棋手, i, j) begin
+                return false
+             end
+        end
+    end
+   	win.msgbox(string.format("棋手%d 无棋可下", 棋手))
+    return true
+end
+
+function 坐标2格子(x, y) begin
+	return math.modf(x / 50) + 1, math.modf(y / 50) + 1
+end
+
+function 计算翻转得分(当前棋盘, 棋手, x, y) begin
+    缓存棋盘 = 初始化棋盘()
+    复制棋盘(缓存棋盘, 当前棋盘)
+    翻转(缓存棋盘, 棋手, x, y)
+    tab = {计算棋子数(缓存棋盘)}
+    翻转得分 = tab[棋手 + 1]
+    return 翻转得分
+end
+
+function 绘制棋盘(棋盘) begin
+	var graphics = gdip.graphics(mainForm.static )
+	for (i = 1;8) begin
+		for (j = 1;8) begin
+			var brush
+			if 棋盘[i][j] == 0 {brush = gdip.solidBrush(0xFF000000)}
+			elseif 棋盘[i][j] == 1 {brush = gdip.solidBrush(0xFFF5F5F5)}
+			elseif 棋盘[i][j] == -1 {brush = gdip.solidBrush(0xFFCAE1FF)}
+			graphics.fillRectangle( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)
+		end
+	end
+end
+
+class 棋局 begin
+ 	ctor( 对手类型 ) begin
+ 		this.当前棋盘 = ..初始化棋盘();
+ 		this.前一步棋盘 = ..初始化棋盘();
+ 		this.前两步棋盘 = ..初始化棋盘();
+ 		this.棋手 = 1
+ 		this.对手类型 = "机"
+ 		this.总棋子数 = 4
+ 	end
+end
+
+function 初始化(对手类型) begin
+    当前棋盘 = 初始化棋盘()
+    前一步棋盘 = 初始化棋盘()
+    前两步棋盘 = 初始化棋盘()
+    return 棋局(当前棋盘, 前一步棋盘, 前两步棋盘, 1, 对手类型, 4)
+end
+
+function 重新初始化(s) begin
+    s.当前棋盘 = 初始化棋盘()
+    s.前一步棋盘 = 初始化棋盘()
+    s.前两步棋盘 = 初始化棋盘()
+    s.棋手 = 1; s.总棋子数 = 4
+end
+
+function 更新棋局(s, x, y) begin
+    if 合法位置(s.当前棋盘, s.棋手, x, y) begin
+    	复制棋盘(s.前两步棋盘, s.前一步棋盘)
+        复制棋盘(s.前一步棋盘, s.当前棋盘) 
+        s.当前棋盘[x][y] = s.棋手
+        s.总棋子数 += 1
+        翻转(s.当前棋盘, s.棋手, x, y)
+        绘制棋盘(s.当前棋盘)
+        黑棋子数, 白棋子数 = 计算棋子数(s.当前棋盘)
+        mainForm.static2.text = "黑棋子数: " ++ 黑棋子数
+        mainForm.static3.text = "白棋子数: " ++ 白棋子数
+        换手(s)
+    end
+end
+
+function 换手(s) begin
+    s.棋手 = 获得当前对手(s.棋手)
+    if 无棋可下(s.当前棋盘, s.棋手) begin
+        s.棋手 = 获得当前对手(s.棋手)
+    end
+end
+
+function 机器信号(s) begin
+	win.delay(200);
+    最大翻转得分 = 0; imax = 0; jmax = 0
+    for (i = 1;8) begin
+        for (j = 1;8) begin
+            if !合法位置(s.当前棋盘, s.棋手, i, j) {continue}
+            翻转得分 = 计算翻转得分(s.当前棋盘, s.棋手, i, j)
+            if 翻转得分 > 最大翻转得分 begin
+                最大翻转得分 = 翻转得分; imax = i; jmax = j
+            end
+        end
+    end
+    return imax, jmax
+end
+
+mainForm.combobox.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.combobox.text );
+	s.对手类型 = mainForm.combobox.text	
+}
+
+mainForm.button.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.button.text );
+	重新初始化(s); 绘制棋盘(s.当前棋盘)
+	
+}
+
+
+mainForm.button2.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.button2.text );
+	复制棋盘(s.当前棋盘, s.前两步棋盘)
+	复制棋盘(s.前一步棋盘, s.前两步棋盘)
+    绘制棋盘(s.当前棋盘)
+    s.总棋子数 -= 2	
+}
+
+var hook = mouse.hook();
+hook.proc = function(msg,x,y,mouseData,injected,flags,timeStamp,extraInfo) begin
+    if (msg == 0x201) begin
+    	var xpos, ypos = win.getPos(mainForm.hwnd);
+        var xcanvas,ycanvas = win.getPos(mainForm.static.hwnd); 
+        x = x - xpos - xcanvas - 17 
+        y = y - ypos - ycanvas - 73
+        x, y = 坐标2格子(y, x)
+    	更新棋局(s, x, y)
+    	if s.对手类型 == "机" && s.棋手 == 0 begin
+        	x, y = 机器信号(s)
+        	更新棋局(s, x, y)
+    	end
+    	if s.总棋子数 >= 64 begin
+    		结束游戏(s.当前棋盘)
+    	end
+    end
+end
+
+s = 棋局("机")
+mainForm.show()
+绘制棋盘(s.当前棋盘)
+win.loopMessage()
