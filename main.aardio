@@ -148,6 +148,11 @@ function 绘制棋盘(棋盘) begin
 			graphics.fillRectangle( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)
 		end
 	end
+	var pen = gdip.pen( 0xFFFF0000, 1, 2/*_GdipUnitPixel*/ );
+	for (i = 1;7) begin
+		graphics.drawLine( pen, 0, i * 50, 400, i * 50)
+		graphics.drawLine( pen, i * 50, 0, i * 50, 400)
+	end
 end
 
 class 棋局 begin
