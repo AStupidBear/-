@@ -6,11 +6,11 @@ mainForm = win.form(text="aardio form";right=677;bottom=490)
 mainForm.add(
 button={cls="button";text="开始";left=470;top=297;right=600;bottom=352;z=2};
 button2={cls="button";text="悔棋";left=470;top=376;right=600;bottom=430;z=3};
-combobox={cls="combobox";left=538;top=227;right=606;bottom=253;edge=1;items={"机";"人"};mode="dropdown";z=7};
-static={cls="static";left=34;top=36;right=434;bottom=436;bgcolor=16777215;notify=1;z=1};
+combobox={cls="combobox";left=538;top=216;right=603;bottom=242;edge=1;items={"机";"人"};mode="dropdown";z=7};
+static={cls="static";left=34;top=36;right=434;bottom=436;bgcolor=16777215;font=LOGFONT(h=-160);notify=1;z=1};
 static2={cls="static";text="黑棋子数: 2";left=469;top=79;right=600;bottom=112;transparent=1;z=4};
 static3={cls="static";text="白棋子数: 2";left=470;top=150;right=600;bottom=180;notify=1;transparent=1;z=5};
-static4={cls="static";text="对手类型";left=471;top=236;right=541;bottom=266;transparent=1;z=6}
+static4={cls="static";text="对手类型";left=471;top=223;right=541;bottom=253;transparent=1;z=6}
 )
 /*}}*/
 
@@ -88,12 +88,6 @@ function 翻转方向(当前棋盘, 棋手, x, y, i, j) begin
     end
 end
 
-function 悔棋(当前棋盘, 前一步棋盘, 前两步棋盘) begin
-    复制棋盘(当前棋盘, 前两步棋盘)
-    复制棋盘(前一步棋盘, 前两步棋盘)
-    绘制棋盘(当前棋盘)
-end
-
 function 计算棋子数(当前棋盘) begin
     白棋总数 = 0; 黑棋总数 = 0
     for (i = 1;8) begin
@@ -141,20 +135,26 @@ function 绘制棋盘(棋盘) begin
 	var graphics = gdip.graphics(mainForm.static )
 	for (i = 1;8) begin
 		for (j = 1;8) begin
-			var brush
-			if 棋盘[i][j] == 0 {brush = gdip.solidBrush(0xFF000000)}
-			elseif 棋盘[i][j] == 1 {brush = gdip.solidBrush(0xFFF5F5F5)}
-			elseif 棋盘[i][j] == -1 {brush = gdip.solidBrush(0xFFCAE1FF)}
-			graphics.fillRectangle( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)
+			brush = gdip.solidBrush(0xFFB2DFEE); graphics.fillRectangle( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)
+			if 棋盘[i][j] == 0 {brush = gdip.solidBrush(0xFF000000); graphics.fillEllipse( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)}
+			elseif 棋盘[i][j] == 1 {brush = gdip.solidBrush(0xFFF5F5F5); graphics.fillEllipse( brush, (j - 1) * 50, (i - 1) * 50, 50, 50)}
 		end
 	end
-	var pen = gdip.pen( 0xFFFF0000, 1, 2/*_GdipUnitPixel*/ );
+	var pen = gdip.pen( 0xFF7A7A7A, 1, 2/*_GdipUnitPixel*/ );
 	for (i = 1;7) begin
 		graphics.drawLine( pen, 0, i * 50, 400, i * 50)
 		graphics.drawLine( pen, i * 50, 0, i * 50, 400)
 	end
 end
 
+function 更新子数(当前棋盘) begin
+    黑棋子数, 白棋子数 = 计算棋子数(当前棋盘)
+    mainForm.static2.text = "黑棋子数: " ++ 黑棋子数
+    mainForm.static3.text = "白棋子数: " ++ 白棋子数
+end
+
+
+        
 class 棋局 begin
  	ctor( 对手类型 ) begin
  		this.当前棋盘 = ..初始化棋盘();
@@ -188,9 +188,7 @@ function 更新棋局(s, x, y) begin
         s.总棋子数 += 1
         翻转(s.当前棋盘, s.棋手, x, y)
         绘制棋盘(s.当前棋盘)
-        黑棋子数, 白棋子数 = 计算棋子数(s.当前棋盘)
-        mainForm.static2.text = "黑棋子数: " ++ 黑棋子数
-        mainForm.static3.text = "白棋子数: " ++ 白棋子数
+        更新子数(s.当前棋盘)
         换手(s)
     end
 end
@@ -203,7 +201,7 @@ function 换手(s) begin
 end
 
 function 机器信号(s) begin
-	win.delay(200);
+	win.delay(500);
     最大翻转得分 = 0; imax = 0; jmax = 0
     for (i = 1;8) begin
         for (j = 1;8) begin
@@ -224,7 +222,7 @@ mainForm.combobox.oncommand = function(id,event){
 
 mainForm.button.oncommand = function(id,event){
 	//mainForm.msgbox( mainForm.button.text );
-	重新初始化(s); 绘制棋盘(s.当前棋盘)
+	重新初始化(s); 绘制棋盘(s.当前棋盘); 更新子数(s.当前棋盘)
 	
 }
 
@@ -234,27 +232,24 @@ mainForm.button2.oncommand = function(id,event){
 	复制棋盘(s.当前棋盘, s.前两步棋盘)
 	复制棋盘(s.前一步棋盘, s.前两步棋盘)
     绘制棋盘(s.当前棋盘)
+    更新子数(s.当前棋盘)
     s.总棋子数 -= 2	
 }
 
-var hook = mouse.hook();
-hook.proc = function(msg,x,y,mouseData,injected,flags,timeStamp,extraInfo) begin
-    if (msg == 0x201) begin
-    	var xpos, ypos = win.getPos(mainForm.hwnd);
-        var xcanvas,ycanvas = win.getPos(mainForm.static.hwnd); 
-        x = x - xpos - xcanvas - 17 
-        y = y - ypos - ycanvas - 73
-        x, y = 坐标2格子(y, x)
-    	更新棋局(s, x, y)
-    	if s.对手类型 == "机" && s.棋手 == 0 begin
-        	x, y = 机器信号(s)
-        	更新棋局(s, x, y)
+mainForm.static.wndproc = function(hwnd,message,wParam,lParam){
+    	if (message == 0x201) begin
+    		var xx,yy=win.getMessagePos(lParam);//在棋盘上的相对位置
+        	x, y = 坐标2格子(yy, xx)
+    		更新棋局(s, x, y)
+    		if s.对手类型 == "机" && s.棋手 == 0 begin
+        		x, y = 机器信号(s)
+        		更新棋局(s, x, y)
+    		end
+    		if s.总棋子数 >= 64 begin
+    			结束游戏(s.当前棋盘)
+    		end
     	end
-    	if s.总棋子数 >= 64 begin
-    		结束游戏(s.当前棋盘)
-    	end
-    end
-end
+}
 
 s = 棋局("机")
 mainForm.show()
