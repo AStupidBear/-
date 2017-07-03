@@ -14,6 +14,7 @@ static4={cls="static";text="对手类型";left=471;top=223;right=541;bottom=253;
 )
 /*}}*/
 
+
 function 出界(x, y) begin
 	return x < 1 || x > 8 || y < 1 || y > 8
 end
@@ -201,7 +202,6 @@ function 换手(s) begin
 end
 
 function 机器信号(s) begin
-	win.delay(500);
     最大翻转得分 = 0; imax = 0; jmax = 0
     for (i = 1;8) begin
         for (j = 1;8) begin
@@ -241,6 +241,7 @@ mainForm.static.wndproc = function(hwnd,message,wParam,lParam){
     		var xx,yy=win.getMessagePos(lParam);//在棋盘上的相对位置
         	x, y = 坐标2格子(yy, xx)
     		更新棋局(s, x, y)
+    		sleep(500)
     		if s.对手类型 == "机" && s.棋手 == 0 begin
         		x, y = 机器信号(s)
         		更新棋局(s, x, y)
